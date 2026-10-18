@@ -1080,8 +1080,12 @@ impl SolveApp {
             let edges = self.session.selection.iter().any(|s| matches!(s, solidcraft_engine::Sel::Edge { .. }));
             return self.start(if edges { "solid.fillet" } else { "solid.extrude" });
         }
+        let finished_sketch = self.session.active_sketch.filter(|_| ends_sketch(id) && self.interactive(id));
+        if finished_sketch.is_some() {
+            self.finish_sketch();
+        }
         if let Some(spec) = solidcraft_engine::find_command(id)
-            && (tools::Tool::for_command(id).is_some() || dialogs::Dialog::for_command(self, id).is_some())
+            && self.interactive(id)
             && id != "sketch.create"
         {
             self.last_command = Some((spec.id.to_string(), spec.label.to_string()));
@@ -1141,7 +1145,10 @@ impl SolveApp {
             self.set_status(tools::hint(id), false);
             return;
         }
-        if let Some(d) = dialogs::Dialog::for_command(self, id) {
+        if let Some(mut d) = dialogs::Dialog::for_command(self, id) {
+            if let Some(sketch) = finished_sketch {
+                d.take_sketch_profile(&self.session, sketch);
+            }
             // The pre-selection now belongs to the dialog's inputs.
             if d.wants_picks() && !self.session.selection.is_empty() {
                 let _ = self.session.execute("select.clear", &json!({}));
@@ -1155,6 +1162,11 @@ impl SolveApp {
             return;
         }
         let _ = self.run(id, json!({}));
+    }
+
+    /// Does starting `id` open a tool or a dialog?
+    fn interactive(&self, id: &str) -> bool {
+        tools::Tool::for_command(id).is_some() || dialogs::Dialog::for_command(self, id).is_some()
     }
 
     /// Edit a feature: sketches open in sketch mode; other features roll the
@@ -2002,3 +2014,12 @@ pub fn now_ms() -> f64 {
 mod picker_test_support;
 #[cfg(test)]
 mod test_support;
+
+/// Toolbar panels whose commands build features from the model, so they finish an open sketch
+/// first, as Fusion does. Construct, Inspect and Insert keep the sketch open.
+const SKETCH_ENDING_PANELS: [&str; 3] = ["CREATE", "MODIFY", "ASSEMBLE"];
+const SKETCH_TAB: &str = "SKETCH";
+
+fn ends_sketch(id: &str) -> bool {
+    solidcraft_engine::find_command(id).is_some_and(|c| c.tab != SKETCH_TAB && SKETCH_ENDING_PANELS.contains(&c.panel) && c.id != "sketch.create")
+}

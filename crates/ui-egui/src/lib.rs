@@ -1083,6 +1083,10 @@ impl SolveApp {
         let finished_sketch = self.session.active_sketch.filter(|_| ends_sketch(id) && self.interactive(id));
         if finished_sketch.is_some() {
             self.finish_sketch();
+            // A feature committed before the marker is back would go in where the sketch was.
+            if self.deferred.is_some() {
+                return;
+            }
         }
         if let Some(spec) = solidcraft_engine::find_command(id)
             && self.interactive(id)
@@ -2015,8 +2019,8 @@ mod picker_test_support;
 #[cfg(test)]
 mod test_support;
 
-/// Toolbar panels whose commands build features from the model, so they finish an open sketch
-/// first, as Fusion does. Construct, Inspect and Insert keep the sketch open.
+/// Toolbar panels whose commands build features from the model; they finish an open sketch first.
+/// Construct, Inspect and Insert keep the sketch open.
 const SKETCH_ENDING_PANELS: [&str; 3] = ["CREATE", "MODIFY", "ASSEMBLE"];
 const SKETCH_TAB: &str = "SKETCH";
 

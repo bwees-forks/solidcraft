@@ -940,7 +940,6 @@ impl Dialog {
         Dialog::new(Kind::EditParam { name: name.into(), expr: s.doc.param(name).map(|p| p.expr.clone()).unwrap_or_default() }, vec![])
     }
 
-    /// Make the first single input still empty (after the filled ones) active.
     /// An Extrude or Revolve started from inside a sketch takes that sketch's profile, as it would
     /// had the sketch stayed open.
     pub(crate) fn take_sketch_profile(&mut self, s: &Session, sketch: u64) {
@@ -953,6 +952,7 @@ impl Dialog {
         }
     }
 
+    /// Make the first single input still empty (after the filled ones) active.
     fn advance(&mut self) {
         if let Some(i) = self.inputs.iter().position(|i| i.items.is_empty()) {
             self.active = i;

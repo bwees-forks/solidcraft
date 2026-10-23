@@ -447,6 +447,9 @@ pub struct SolveApp {
     /// thread, and those asked for meanwhile ([`deferred`]).
     pub deferred: Option<deferred::Deferred>,
     pub deferred_queue: Vec<(String, Value)>,
+    /// A feature started from a sketch while the marker rolls back, and that sketch: it starts
+    /// once the marker is back.
+    pub start_after_roll: Option<(String, u64)>,
     /// A delete's check of what it takes with it or breaks, computing off the window thread
     /// ([`deferred::DeleteCheck`], #2678).
     pub delete_check: Option<deferred::DeleteCheck>,
@@ -595,6 +598,7 @@ impl SolveApp {
             applying: None,
             deferred: None,
             deferred_queue: Vec::new(),
+            start_after_roll: None,
             delete_check: None,
             apply_off_thread: None,
             #[cfg(test)]
@@ -1085,9 +1089,15 @@ impl SolveApp {
             self.finish_sketch();
             // A feature committed before the marker is back would go in where the sketch was.
             if self.deferred.is_some() {
+                self.start_after_roll = finished_sketch.map(|sketch| (id.to_string(), sketch));
                 return;
             }
         }
+        self.start_interactive(id, finished_sketch);
+    }
+
+    /// The rest of [`SolveApp::start`], once any sketch `id` ends is finished.
+    pub(crate) fn start_interactive(&mut self, id: &str, finished_sketch: Option<u64>) {
         if let Some(spec) = solidcraft_engine::find_command(id)
             && self.interactive(id)
             && id != "sketch.create"

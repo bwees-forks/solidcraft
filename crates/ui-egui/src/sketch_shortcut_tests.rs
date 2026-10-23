@@ -255,4 +255,6 @@ fn a_feature_started_while_the_marker_rolls_back_waits_for_it() {
         std::thread::sleep(std::time::Duration::from_millis(10));
     }
     assert_eq!(h.app.session.doc.marker, None);
+    let items = h.app.dialog.as_ref().and_then(|d| d.inputs.first()).map(|i| i.items.clone()).unwrap_or_default();
+    assert_eq!(items, vec![Sel::Profile { sketch, index: 0 }], "Extrude did not open once the marker was back");
 }
